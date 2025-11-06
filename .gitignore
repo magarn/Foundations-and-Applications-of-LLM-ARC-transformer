@@ -1,6 +1,5 @@
 # 忽略模型权重和数据
 ckpts/*
-data/*
+data/*/
 *.pt
 *.safetensors
-*.tar.gz
