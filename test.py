@@ -9,8 +9,8 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from tokenizer import CharTokenizer, SubwordTokenizer
-from dataloader import get_dataloader
-
+from dataloader import ASRDataset, asr_data_collator
+from torch.utils.data import DataLoader
 from train import init_model
 
 
@@ -246,18 +246,21 @@ def beam_search_parallel(
 
     return pred_tokens
 
+from safetensors.torch import load_file as safe_load
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 4:
-        print("Usage: python test.py <feature_extractor_type> <dataset_type> <checkpoint_path>")
+    if len(sys.argv) != 3:
+        print("Usage: python test.py <feature_extractor_type> <checkpoint_path>")
         sys.exit(1)
 
     print(f"ARGS: {sys.argv}")
 
     feature_extractor_type = sys.argv[1]
-    dataset_type = sys.argv[2]
-    ckpt_path = sys.argv[3]
+    # feature_extractor_type = 'resnet'
+    dataset_type = 'minilibrispeech'
+    ckpt_path = sys.argv[2]
+    # ckpt_path = 'ckpts/checkpoints_resnet_miniLibriSpeech/model.safetensors'
     assert feature_extractor_type in ["linear", "resnet"]
 
     if dataset_type == "lrs2":
@@ -265,11 +268,11 @@ if __name__ == "__main__":
         audio_path_file = "./data/LRS2/test.paths"
         text_file = "./data/LRS2/test.text"
         lengths_file = "./data/LRS2/test.lengths"
-    elif dataset_type == "librispeech":
-        t_ph = "./spm/librispeech/1000_bpe.model"
-        audio_path_file = "./data/LibriSpeech/test-clean.paths"
-        text_file = "./data/LibriSpeech/test-clean.text"
-        lengths_file = "./data/LibriSpeech/test-clean.lengths"
+    elif dataset_type == "minilibrispeech":
+        t_ph = "./spm/minilibrispeech/1000_bpe.model"
+        audio_path_file = "./data/miniLibriSpeech/dev-clean-2.paths"
+        text_file = "./data/miniLibriSpeech/dev-clean-2.text"
+        lengths_file = "./data/miniLibriSpeech/dev-clean-2.lengths"
     else:
         raise ValueError(f"Invalid dataset type: {dataset_type}")
 
@@ -288,9 +291,9 @@ if __name__ == "__main__":
     # define dataloader
     batch_size = 1
     batch_seconds = 100000  # unlimited
-    data_loader = get_dataloader(
-        audio_paths, transcripts, wav_lengths, tokenizer, batch_size, batch_seconds, shuffle=False
-    )
+    train_dataset = ASRDataset(audio_paths, transcripts, wav_lengths, tokenizer, batch_seconds, shuffle=False)
+    data_loader = DataLoader(train_dataset, batch_size=1)
+
 
     # define model
     vocab = tokenizer.vocab
@@ -299,7 +302,16 @@ if __name__ == "__main__":
     num_dec_layers = 6
     model = init_model(vocab, enc_dim, num_enc_layers, num_dec_layers, feature_extractor_type)
     model.eval()
-    ckpt = torch.load(ckpt_path, map_location="cpu")
+    # ckpt = torch.load(ckpt_path, map_location="cpu")
+
+    if ckpt_path.endswith(".safetensors"):
+        ckpt = safe_load(ckpt_path)
+    else:
+        ckpt = torch.load(ckpt_path, map_location="cpu")
+
+    missing, unexpected = model.load_state_dict(ckpt, strict=False)
+
+
     missing, unexpected = model.load_state_dict(ckpt)
     print(f"Missing keys: {missing}. Unexpected: {unexpected}", flush=True)
     if torch.cuda.is_available():
@@ -318,7 +330,9 @@ if __name__ == "__main__":
     tot_words = 0
     print(f"index  |  ground truth  |  prediction  |  WER (Word Error Rate)", flush=True)
 
-    for i, (fbank_feat, feat_lens, ys_in, ys_out) in enumerate(tqdm.tqdm(data_loader)):
+    for i, batch in enumerate(tqdm.tqdm(data_loader)):
+        fbank_feat, feat_lens, ys_in, ys_out = batch["input_values"], batch["feat_lens"], batch["decoder_input_ids"], batch["labels"]
+        # print('check',type(fbank_feat), fbank_feat)
         assert fbank_feat.size(0) == 1, "Only support batch size 1."
 
         if torch.cuda.is_available():

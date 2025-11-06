@@ -2,12 +2,12 @@ import os
 import soundfile as sf
 
 # 你的数据根目录
-root_dir = "./data/miniLibriSpeech/train-clean-5"
+root_dir = "./data/miniLibriSpeech/dev-clean-2"
 
 # 输出文件
-audio_path_file = "./data/miniLibriSpeech/train-clean-5.paths"
-text_file = "./data/miniLibriSpeech/train-clean-5.text"
-lengths_file = "./data/miniLibriSpeech/train-clean-5.lengths"
+audio_path_file = "./data/miniLibriSpeech/dev-clean-2.paths"
+text_file = "./data/miniLibriSpeech/dev-clean-2.text"
+lengths_file = "./data/miniLibriSpeech/dev-clean-2.lengths"
 
 # 可选：transcription 文件（每个说话人文件夹下会有 .txt 文件）
 # 例：19/198/19-198.trans.txt
