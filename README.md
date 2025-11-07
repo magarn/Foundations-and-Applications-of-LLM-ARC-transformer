@@ -21,6 +21,13 @@
 本仓库重点在教学与可读性，不包含复杂组件（如分布式训练、语言模型集成、CTC前缀束搜索等）。
 若你想学习 ASR 基础原理，本项目是理想起点。
 
+## 环境配置
+```bash
+conda creat -n ASR python=3.10 -y
+conda activate ASR
+pip install -r requirements.txt
+```
+
 ## 数据预处理
 
 数据集使用 [miniLibriSpeech](https://www.openslr.org/31/) 的音频部分。
